@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Geometry Dash — V10 Mobile-Friendly with Death Score Save</title>
+<title>Geometry Dash — V12 with Forest Flight Fixed</title>
 <style>
   html,body{height:100%;margin:0;background:#05060d;font-family:Inter, Arial, sans-serif;}
   canvas{display:block;margin:0 auto;}
@@ -21,7 +21,9 @@ window.addEventListener('resize',resizeCanvas);
 resizeCanvas();
 
 let gameState='menu', currentLevel=1, score=0;
-let bestScores = JSON.parse(localStorage.getItem('gd_bestScores')) || [0,0,0,0,0];
+let bestScores = JSON.parse(localStorage.getItem('gd_bestScores')) || [0,0,0,0,0,0];
+// Ensure bestScores has 6 entries (for Forest Flight)
+while(bestScores.length < 6) bestScores.push(0);
 let lastScore=0;
 
 let player={x:160,y:0,w:32,h:32,vy:0,gravity:0.55,jumpPower:12,onGround:false,jumpCount:0,maxJumps:2,mode:'cube',color:'#00e6ff'};
@@ -33,7 +35,8 @@ const LEVELS=[
   {name:'Blue Pulse', palette:['#4bc8ff','#07304d','#021522'], interval:90, minH:80, maxH:140, speed:5},
   {name:'Solar UFO', palette:['#ff7a33','#3d1200','#2b0f06'], interval:110, minH:60, maxH:120, speed:4.2, midAir:true},
   {name:'Emerald Flight', palette:['#4bff8a','#07321a','#02190f'], interval:100, minH:70, maxH:130, speed:5.2},
-  {name:'Cyan Wave', palette:['#00fff3','#05343a','#021516'], interval:120, minH:50, maxH:100, speed:5.6}
+  {name:'Cyan Wave', palette:['#00fff3','#05343a','#021516'], interval:120, minH:50, maxH:100, speed:5.6},
+  {name:'Forest Flight', palette:['#00ff55','#017a1a','#004d0f'], interval:90, minH:80, maxH:180, speed:4.5, midAir:true}
 ];
 
 function setPlayerForLevel(level){
@@ -42,6 +45,7 @@ function setPlayerForLevel(level){
     case 3: player.mode='UFO'; player.maxJumps=1; break;
     case 4: player.mode='plane'; player.maxJumps=1; break;
     case 5: player.mode='wave'; player.maxJumps=0; break;
+    case 6: player.mode='UFO'; player.maxJumps=1; break; // Forest Flight
   }
   player.color=LEVELS[level-1].palette[0];
 }
@@ -60,7 +64,7 @@ function drawMenu(){
   ctx.fillStyle='#03040a66';ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle='#fff';ctx.font='40px Inter, Arial';ctx.fillText('Geometry Dash — Modern',canvas.width*0.15,canvas.height*0.2);
   ctx.font='20px Inter, Arial';ctx.fillText('Tap a level below to play',canvas.width*0.15,canvas.height*0.25);
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=6;i++){
     let x=canvas.width*0.2,y=canvas.height*0.3+i*60;
     ctx.fillStyle=LEVELS[i-1].palette[0]; ctx.fillRect(x,y-28,220,36);
     ctx.fillStyle='#000'; ctx.font='18px Inter, Arial';
@@ -74,7 +78,7 @@ canvas.addEventListener('touchstart', function(ev){
   const x=touch.clientX-canvas.getBoundingClientRect().left;
   const y=touch.clientY-canvas.getBoundingClientRect().top;
   if(gameState==='menu'){
-    for(let i=1;i<=5;i++){
+    for(let i=1;i<=6;i++){
       let btnX=canvas.width*0.2, btnY=canvas.height*0.3+i*60-28, btnW=220, btnH=36;
       if(x>=btnX && x<=btnX+btnW && y>=btnY && y<=btnY+btnH){currentLevel=i; resetGame(); gameState='play';}
     }
@@ -83,7 +87,7 @@ canvas.addEventListener('touchstart', function(ev){
 },{passive:false});
 
 document.addEventListener('keydown', function(e){
-  if(gameState==='menu' && ['1','2','3','4','5'].includes(e.key)){currentLevel=parseInt(e.key); resetGame(); gameState='play';}
+  if(gameState==='menu' && ['1','2','3','4','5','6'].includes(e.key)){currentLevel=parseInt(e.key); resetGame(); gameState='play';}
   if(gameState==='play' && (e.key===' '||e.key==='ArrowUp')) doAction();
   if(gameState==='dead' && e.key.toLowerCase()==='r') gameState='menu';
 });
@@ -112,7 +116,8 @@ function updateObstacles(){
   const lv=LEVELS[currentLevel-1];
   for(let i=obstacles.length-1;i>=0;i--){
     obstacles[i].x-=lv.speed;
-    ctx.fillStyle='#ff3333'; ctx.fillRect(obstacles[i].x,obstacles[i].y,obstacles[i].w,obstacles[i].h);
+    ctx.fillStyle = (currentLevel===6 ? '#017a1a' : '#ff3333');
+    ctx.fillRect(obstacles[i].x,obstacles[i].y,obstacles[i].w,obstacles[i].h);
     if(rectIntersect(player,obstacles[i])) {
       gameState='dead';
       lastScore = score;
@@ -136,22 +141,18 @@ function update(){
     requestAnimationFrame(update); return;
   }
 
-  // Physics
   player.vy+=player.gravity; player.y+=player.vy;
   if(player.y+player.h>canvas.height){player.y=canvas.height-player.h; player.vy=0; player.jumpCount=0;}
 
   spawnObstacles(); updateObstacles();
 
-  // Score
   score++; ctx.fillStyle='#fff'; ctx.font='20px Inter, Arial'; ctx.fillText('Score: '+score,12,28);
 
-  // Win condition
   if(score>=5000){
     if(score>bestScores[currentLevel-1]){ bestScores[currentLevel-1]=score; localStorage.setItem('gd_bestScores', JSON.stringify(bestScores)); }
     gameState='menu'; alert('Level '+currentLevel+' completed!');
   }
 
-  // Draw player
   ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.w,player.h);
   requestAnimationFrame(update);
 }
