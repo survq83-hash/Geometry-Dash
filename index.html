@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Geometry Dash — Stable Build</title>
+<title>Geometry Dash — Stable Build (Forest Flight + Burning Heights + Disco Chaos)</title>
 <style>
-  html, body { height: 100%; margin: 0; background: #05060d; font-family: Inter, Arial, sans-serif; }
-  canvas { display: block; margin: 0 auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-  #hint { position: fixed; left: 12px; bottom: 12px; color: #ddd; font-size: 13px; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 8px; }
+  html,body{height:100%;margin:0;background:#05060d;font-family:Inter, Arial, sans-serif;}
+  canvas{display:block;margin:0 auto;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  #hint{position:fixed;left:12px;bottom:12px;color:#ddd;font-size:13px;background:rgba(0,0,0,0.25);padding:8px;border-radius:8px}
 </style>
 </head>
 <body>
@@ -53,13 +53,19 @@ function rectIntersect(a,b){ return !(a.x + a.w < b.x || a.x > b.x + b.w || a.y 
 
 // ---------- SETUP PER LEVEL ----------
 function setPlayerForLevel(level){
+  const lv = LEVELS[level-1];
   switch(level){
     case 1: case 2: case 8: player.mode='cube'; player.maxJumps=2; break;
     case 3: case 6: case 7: player.mode='UFO'; player.maxJumps=1; break;
     case 4: player.mode='plane'; player.maxJumps=1; break;
     case 5: player.mode='wave'; player.maxJumps=0; break;
   }
-  player.color = LEVELS[level-1].palette[0] || '#00e6ff';
+  // Ensure player is always visible
+  if(level === 8){ // Disco Chaos
+    player.color = '#000000';
+  } else {
+    player.color = lv.palette && lv.palette[0] ? lv.palette[0] : '#00e6ff';
+  }
 }
 
 function createDecorForLevel(level){
@@ -70,134 +76,49 @@ function createDecorForLevel(level){
   for(let i=0;i<30;i++) particles.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, vy: -0.15 - Math.random()*0.5, life: 30+Math.random()*80, size: 1+Math.random()*3});
 }
 
-// ---------- DRAW HELPERS ----------
-function drawBackground(){
-  if(currentLevel===7){ // Burning Heights lava
-    const t = Date.now()*0.0012;
-    const a = (Math.sin(t)+1)/2;
-    const c1=[255,75,43], c2=[255,154,60];
-    const r=Math.round(c1[0]*(1-a)+c2[0]*a);
-    const g=Math.round(c1[1]*(1-a)+c2[1]*a);
-    const b=Math.round(c1[2]*(1-a)+c2[2]*a);
-    ctx.fillStyle = 'rgb('+r+','+g+','+b+')';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-  } else if(currentLevel===8){ // Disco Chaos
-    const t = Date.now()*0.0005; // slower color changes
-    const h = (t*50)%360;
-    ctx.fillStyle = `hsl(${h}, 80%, 50%)`;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-  } else {
-    const col = LEVELS[currentLevel-1]?.palette?.[2] || '#05060d';
-    ctx.fillStyle = col; ctx.fillRect(0,0,canvas.width,canvas.height);
-  }
+// ---------- DRAW PLAYER ----------
+function drawPlayer(){
+  ctx.save();
+  ctx.shadowColor = player.color;
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = player.color;
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+  ctx.restore();
 }
 
-function drawParallax(){ ctx.save(); for(const layer of parallax){ ctx.globalAlpha = layer.alpha; ctx.fillStyle = layer.color; ctx.fillRect(layer.x, layer.y, layer.w, layer.h); } ctx.restore(); }
-function drawDecor(){ ctx.save(); for(const d of decor){ ctx.globalAlpha = d.alpha; ctx.fillStyle = d.color; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI*2); ctx.fill(); } ctx.restore(); }
-function updateParticles(){ ctx.save(); for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.y += p.vy; p.life -= 1; ctx.globalAlpha = Math.max(0, Math.min(1, p.life/120)); ctx.fillStyle = 'rgba(200,160,120,0.9)'; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); if(p.life<=0 || p.y < -10) particles.splice(i,1); } ctx.restore(); if(Math.random()<0.06) particles.push({x:Math.random()*canvas.width, y: canvas.height - 40 + Math.random()*20, vy:-0.4 - Math.random()*0.8, life:40+Math.random()*80, size:1+Math.random()*3}); }
-
-function drawHeatShimmer(){ if(currentLevel!==7) return; ctx.save(); const t=Date.now()*0.002; ctx.globalAlpha=0.06; const g=ctx.createLinearGradient(0,canvas.height-120,canvas.width,canvas.height); g.addColorStop(0,'rgba(255,150,80,0.02)'); g.addColorStop(1,'rgba(255,180,120,0.02)'); ctx.fillStyle=g; ctx.fillRect(0,canvas.height-120,canvas.width,120); ctx.restore(); }
-
-// ---------- MENU ----------
-function drawMenu(){
-  drawBackground(); drawParallax(); drawDecor(); updateParticles();
-  ctx.fillStyle='#fff'; ctx.font='36px Inter, Arial'; ctx.fillText('Geometry Dash', canvas.width*0.08, 80);
-  ctx.font='18px Inter, Arial'; ctx.fillText('Tap a level to play', canvas.width*0.08, 110);
-  for(let i=1;i<=8;i++){
-    const x = canvas.width*0.14, y = 140 + i*48;
-    ctx.fillStyle = LEVELS[i-1].palette[0] || '#fff';
-    ctx.fillRect(x, y-28, 300, 36);
-    ctx.fillStyle='#000'; ctx.font='16px Inter, Arial';
-    ctx.fillText(i+' - '+LEVELS[i-1].name+' (Best: '+(bestScores[i-1]||0)+')', x+10, y);
-  }
-}
-
-// ---------- INPUT HANDLING ----------
-canvas.addEventListener('touchstart', function(ev){
-  ev.preventDefault();
-  const touch = ev.touches[0];
-  const x = touch.clientX - canvas.getBoundingClientRect().left;
-  const y = touch.clientY - canvas.getBoundingClientRect().top;
-  if(gameState==='menu'){
-    for(let i=1;i<=8;i++){
-      let btnX = canvas.width*0.14, btnY = 140 + i*48 - 28, btnW = 300, btnH = 36;
-      if(x>=btnX && x<=btnX+btnW && y>=btnY && y<=btnY+btnH){ currentLevel=i; resetGame(); gameState='play'; }
-    }
-  } else if(gameState==='play') doAction();
-  else if(gameState==='dead') gameState='menu';
-}, {passive:false});
-
-document.addEventListener('keydown', function(e){
-  if(gameState==='menu' && ['1','2','3','4','5','6','7','8'].includes(e.key)){
-    currentLevel=parseInt(e.key); resetGame(); gameState='play';
-  }
-  if(gameState==='play' && (e.key===' '||e.key==='ArrowUp')) doAction();
-  if(gameState==='dead' && e.key.toLowerCase()==='r') gameState='menu';
-});
-
-function doAction(){
-  if(gameState!=='play') return;
-  if(player.mode==='cube' && player.jumpCount<player.maxJumps){ player.vy = -player.jumpPower; player.jumpCount++; }
-  if(player.mode==='UFO'){ player.vy = -6; }
-  if(player.mode==='plane'){ player.vy = -7; }
-}
-
-// ---------- OBSTACLES ----------
-function spawnObstacles(){
-  if(gameState!=='play') return;
-  const lv = LEVELS[currentLevel-1];
-  obstacleTimer++;
-  if(obstacleTimer < lv.interval) return;
-  obstacleTimer = 0;
-  const roll = Math.random();
-  if(roll < 0.38){ const h = lv.minH + Math.random()*(lv.maxH-lv.minH); obstacles.push({type:'block', x:canvas.width+40, y:canvas.height - h, w:36, h:h}); }
-  else if(roll < 0.7 && currentLevel===7){ const baseY = canvas.height*0.3 + Math.random()*canvas.height*0.5; obstacles.push({type:'fireball', x:canvas.width+40, y:baseY, r:14, amp:20+Math.random()*40, speed:2+Math.random()*2, t:Math.random()*Math.PI*2}); }
-  else if(roll < 0.7 && currentLevel!==7){ const spikeH = 28 + Math.random()*48; obstacles.push({type:'spike', x:canvas.width+40, y:canvas.height - spikeH - 4, w:28, h:spikeH}); }
-  else if(roll >= 0.7 && currentLevel===8){ const spikeH = 28 + Math.random()*48; obstacles.push({type:'spike', x:canvas.width+40, y:canvas.height - spikeH - 4, w:28, h:spikeH}); if(Math.random()<0.5){ const h = lv.minH + Math.random()*(lv.maxH-lv.minH); obstacles.push({type:'block', x:canvas.width+40, y:canvas.height - h, w:36, h:h}); } }
-}
-
-function updateObstacles(){
-  if(gameState!=='play') return;
-  const lv = LEVELS[currentLevel-1];
-  for(let i=obstacles.length-1;i>=0;i--){
-    const o = obstacles[i];
-    if(o.type==='block'){ o.x -= lv.speed; ctx.fillStyle = (currentLevel===6? '#2b7a1a' : (currentLevel===7? '#6b2f00':'#ff3333')); ctx.fillRect(o.x, o.y, o.w, o.h); if(rectIntersect(player, o)) handleDeath(); }
-    else if(o.type==='fireball'){ o.x -= lv.speed + o.speed; o.t += 0.05*o.speed; const fy = o.y + Math.sin(o.t)*o.amp; ctx.save(); ctx.shadowBlur=14; ctx.shadowColor='orange'; ctx.fillStyle='orange'; ctx.beginPath(); ctx.arc(o.x, fy, o.r, 0, Math.PI*2); ctx.fill(); ctx.restore(); if(rectIntersect(player, {x:o.x-o.r, y:fy-o.r, w:o.r*2, h:o.r*2})) handleDeath(); }
-    else if(o.type==='spike'){ o.x -= lv.speed; ctx.fillStyle = (currentLevel===7? '#6b3b00' : '#aa3333'); ctx.beginPath(); ctx.moveTo(o.x, o.y+o.h); ctx.lineTo(o.x+o.w/2, o.y); ctx.lineTo(o.x+o.w, o.y+o.h); ctx.closePath(); ctx.fill(); if(rectIntersect(player, {x:o.x, y:o.y, w:o.w, h:o.h})) handleDeath(); }
-    if((o.x + (o.w || o.r*2) ) < -50) obstacles.splice(i,1);
-  }
-}
-
-function handleDeath(){ if(gameState!=='play') return; gameState='dead'; lastScore = score; if(lastScore > bestScores[currentLevel-1]){ bestScores[currentLevel-1] = lastScore; localStorage.setItem('gd_bestScores', JSON.stringify(bestScores)); } }
-
-// ---------- LAVA ----------
-function drawLavaGround(){ const h = 120; const y0 = canvas.height - h; const g = ctx.createLinearGradient(0, y0, 0, canvas.height); g.addColorStop(0, 'rgba(120,30,10,0.8)'); g.addColorStop(1, 'rgba(200,70,20,1)'); ctx.fillStyle = g; ctx.fillRect(0, y0, canvas.width, h); }
-
-// ---------- GAME RESET & UPDATE ----------
-function resetGame(){ player.y = canvas.height*0.7; player.vy = 0; player.jumpCount = 0; obstacles = []; createDecorForLevel(currentLevel); setPlayerForLevel(currentLevel); obstacleTimer = 0; score = 0; }
-
+// ---------- GAME LOOP ----------
 function update(){
-  drawBackground(); drawParallax(); drawDecor(); updateParticles();
+  drawBackground();
+  drawParallax();
+  drawDecor();
+  updateParticles();
 
   if(gameState==='menu'){ drawMenu(); requestAnimationFrame(update); return; }
   if(gameState==='dead'){ ctx.fillStyle='white'; ctx.font='22px Inter, Arial'; ctx.fillText('You Died at: '+lastScore+' — Tap or press R to return', 20, canvas.height*0.5); requestAnimationFrame(update); return; }
 
-  player.vy += player.gravity; player.y += player.vy;
-  if(currentLevel===7){ if(player.y + player.h >= canvas.height) handleDeath(); } else { if(player.y + player.h > canvas.height){ player.y = canvas.height - player.h; player.vy = 0; player.jumpCount = 0; } }
+  // Player physics
+  player.vy += player.gravity; 
+  player.y += player.vy;
+  if(currentLevel===7){ if(player.y + player.h >= canvas.height) handleDeath(); } 
+  else { if(player.y + player.h > canvas.height){ player.y = canvas.height - player.h; player.vy = 0; player.jumpCount = 0; } }
 
   spawnObstacles(); updateObstacles();
+
   if(currentLevel===7){ drawLavaGround(); drawHeatShimmer(); }
 
-  score++; ctx.fillStyle='#fff'; ctx.font='18px Inter, Arial'; ctx.fillText('Score: '+score,12,26);
-  if(score>=5000){ handleDeath(); } // level complete condition
+  drawPlayer();
 
-  ctx.fillStyle = '#fff'; ctx.font = '14px Inter, Arial'; ctx.fillText('Best: '+bestScores[currentLevel-1], 12, 46);
-
+  score++; 
+  ctx.fillStyle='#fff'; 
+  ctx.font='18px Inter, Arial'; 
+  ctx.fillText('Score: '+score,12,26);
   requestAnimationFrame(update);
 }
 
+// ---------- START ----------
 resetGame();
 update();
 </script>
 </body>
 </html>
+
